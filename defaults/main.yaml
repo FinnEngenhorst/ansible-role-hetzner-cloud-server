@@ -1,0 +1,20 @@
+hetzner_api_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+hetzner_servers:
+  - name: server-1
+    type: cx21
+    datacenter: fsn1-dc14
+    image: ubuntu-20.04
+    labels:
+      env: production
+      role: web
+  - name: server-2
+    type: cx11
+    datacenter: nbg1-dc3
+    image: ubuntu-20.04
+    labels:
+      env: staging
+      role: db
+
+
+common_user_name: "newuser"
+common_ssh_public_key: "ssh-rsa AAAAB3...your-public-key... comment"

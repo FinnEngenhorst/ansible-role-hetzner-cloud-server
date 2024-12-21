@@ -1,0 +1,83 @@
+- name: Ensure required variables are defined
+  ansible.builtin.assert:
+    that:
+      - hetzner_api_token is defined
+      - hetzner_api_token != ""
+      - hetzner_servers is defined
+      - hetzner_servers | length > 0
+    fail_msg: "Required variables are not defined or empty. Check 'hetzner_api_token' and 'hetzner_servers'."
+
+- name: Generate cloud-config
+  ansible.builtin.template:
+    src: cloud-config.j2
+    dest: /tmp/cloud-config.yaml
+
+- name: Validate each server's configuration
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.name != ""
+      - item.type is defined
+      - item.type != ""
+      - item.datacenter is defined
+      - item.datacenter != ""
+      - item.image is defined
+      - item.image != ""
+    fail_msg: "One or more required server attributes are missing or empty."
+  loop: "{{ hetzner_servers }}"
+
+- name: Launch Hetzner Cloud servers
+  hetzner.hcloud.server:
+    api_token: "{{ hetzner_api_token }}"
+    name: "{{ item.name }}"
+    server_type: "{{ item.type }}"
+    datacenter: "{{ item.datacenter }}"
+    image: "{{ item.image }}"
+    user_data: "{{ lookup('file', '/tmp/cloud-config.yaml') }}"
+    labels: "{{ item.labels | default({}) }}"  
+  loop: "{{ hetzner_servers }}"
+  async: 300 
+  poll: 0
+  register: server_jobs
+
+- name: Wait for all servers to finish creation
+  async_status:
+    jid: "{{ item.ansible_job_id }}"
+  register: job_results
+  until: job_results.finished
+  retries: 30
+  delay: 5
+  loop: "{{ server_jobs.results }}"
+  when: item.ansible_job_id is defined
+
+- name: Debug job results
+  debug:
+    var: job_results
+
+- name: Debug results file content
+  debug:
+    msg: "{{ lookup('file', item.results_file) | from_json }}"
+  loop: "{{ server_jobs.results }}"
+  when: item.results_file is defined
+
+- name: Debug extracted IP address
+  debug:
+    msg: "{{ (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address }}"
+  loop: "{{ server_jobs.results }}"
+  when:
+    - item.results_file is defined
+    - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
+
+- name: Extract IP addresses from results
+  set_fact:
+    server_ips: >-
+      {{ server_ips | default({}) | combine({ item.item.name: (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address }) }}
+  loop: "{{ server_jobs.results }}"
+  when:
+    - item.results_file is defined
+    - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
+
+- name: Debug server_ips
+  debug:
+    var: server_ips
+

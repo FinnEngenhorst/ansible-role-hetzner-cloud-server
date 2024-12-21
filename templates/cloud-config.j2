@@ -1,0 +1,62 @@
+#cloud-config
+
+# Add a new user
+users:
+  - name: {{ common_user_name }}
+    ssh-authorized-keys:
+      - {{ common_ssh_public_key }}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    groups: sudo
+    shell: "/bin/bash"
+
+# Update and upgrade the system
+package_update: true
+package_upgrade: true
+
+# Install common security tools
+packages:
+  - ufw
+  - fail2ban
+
+# Configure UFW (Uncomplicated Firewall)
+write_files:
+  - path: /etc/ufw/applications.d/default
+    content: |
+      [SSH]
+      title=Secure Shell
+      description=OpenSSH server
+      ports=22/tcp
+runcmd:
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw enable
+
+# Configure Fail2Ban
+write_files:
+  - path: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime = 10m
+      findtime = 10m
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+
+# Harden SSH
+write_files:
+  - path: /etc/ssh/sshd_config.d/99-custom.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      ChallengeResponseAuthentication no
+      UsePAM yes
+      AllowUsers {{ common_user_name }}
+  - path: /etc/motd
+    content: |
+      Unauthorized access is prohibited. All activity is monitored.
+
+runcmd:
+  - systemctl restart sshd
+  - systemctl enable fail2ban
