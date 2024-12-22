@@ -16,5 +16,7 @@ hetzner_servers:
       role: db
 
 
-common_user_name: "newuser"
-common_ssh_public_key: "ssh-rsa AAAAB3...your-public-key... comment"
+admin_user_name: "newuser"
+admin_ssh_public_key: "ssh-rsa AAAAB3...your-public-key... comment"
+ansible_user_name: "ansible"
+ansible_ssh_public_key: "ssh-rsa AAAAB3...your-public-key... comment"

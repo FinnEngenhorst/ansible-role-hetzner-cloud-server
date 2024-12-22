@@ -2,9 +2,15 @@
 
 # Add a new user
 users:
-  - name: {{ common_user_name }}
+  - name: {{ admin_user_name }}
     ssh-authorized-keys:
-      - {{ common_ssh_public_key }}
+      - {{ admin_ssh_public_key }}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    groups: sudo
+    shell: "/bin/bash"
+  - name: {{ ansible_user_name }}
+    ssh-authorized-keys:
+      - {{ ansible_ssh_public_key }}
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
     groups: sudo
     shell: "/bin/bash"
@@ -52,7 +58,7 @@ write_files:
       PasswordAuthentication no
       ChallengeResponseAuthentication no
       UsePAM yes
-      AllowUsers {{ common_user_name }}
+      AllowUsers {{ admin_user_name }} {{ ansible_user_name }}
   - path: /etc/motd
     content: |
       Unauthorized access is prohibited. All activity is monitored.
@@ -60,3 +66,4 @@ write_files:
 runcmd:
   - systemctl restart sshd
   - systemctl enable fail2ban
+  - reboot
