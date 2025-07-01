@@ -50,28 +50,6 @@
   loop: "{{ server_jobs.results }}"
   when: item.ansible_job_id is defined
 
-- name: Debug job results
-  debug:
-    var: job_results
-  when: debug_enabled | bool
-
-- name: Debug results file content
-  debug:
-    msg: "{{ lookup('file', item.results_file) | from_json }}"
-  loop: "{{ server_jobs.results }}"
-  when:
-    - debug_enabled | bool
-    - item.results_file is defined
-
-- name: Debug extracted IP address
-  debug:
-    msg: "{{ (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address }}"
-  loop: "{{ server_jobs.results }}"
-  when:
-    - debug_enabled | bool
-    - item.results_file is defined
-    - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
-
 - name: Extract IP addresses from results
   set_fact:
     server_ips: >-
@@ -80,8 +58,3 @@
   when:
     - item.results_file is defined
     - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
-
-- name: Debug server_ips
-  debug:
-    var: server_ips
-  when: debug_enabled | bool
