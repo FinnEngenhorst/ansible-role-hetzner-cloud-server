@@ -26,27 +26,7 @@
     fail_msg: "One or more required server attributes are missing or empty."
   loop: "{{ hetzner_servers }}"
 
-- name: Check if servers already exist
-  hetzner.hcloud.server_info:
-    api_token: "{{ hetzner_api_token }}"
-    name: "{{ item.name }}"
-  loop: "{{ hetzner_servers }}"
-  register: existing_servers
-  ignore_errors: true
-
-- name: Power off server if server_type has changed
-  hetzner.hcloud.server:
-    api_token: "{{ hetzner_api_token }}"
-    name: "{{ item.item.name }}"
-    state: absent
-  loop: "{{ existing_servers.results }}"
-  when:
-    - not item.failed | default(false)
-    - item.hcloud_server.server_type.name != (
-        hetzner_servers | selectattr('name', 'equalto', item.item.name) | map(attribute='type') | first
-      )
-
-- name: Create or update server (new or type changed)
+- name: Launch Hetzner Cloud servers
   hetzner.hcloud.server:
     api_token: "{{ hetzner_api_token }}"
     name: "{{ item.name }}"
@@ -54,10 +34,9 @@
     datacenter: "{{ item.datacenter }}"
     image: "{{ item.image }}"
     user_data: "{{ lookup('file', '/tmp/cloud-config.yaml') }}"
-    labels: "{{ item.labels | default({}) }}"
-    state: present
+    labels: "{{ item.labels | default({}) }}"  
   loop: "{{ hetzner_servers }}"
-  async: 300
+  async: 300 
   poll: 0
   register: server_jobs
 
@@ -71,6 +50,28 @@
   loop: "{{ server_jobs.results }}"
   when: item.ansible_job_id is defined
 
+- name: Debug job results
+  debug:
+    var: job_results
+  when: debug_enabled | bool
+
+- name: Debug results file content
+  debug:
+    msg: "{{ lookup('file', item.results_file) | from_json }}"
+  loop: "{{ server_jobs.results }}"
+  when:
+    - debug_enabled | bool
+    - item.results_file is defined
+
+- name: Debug extracted IP address
+  debug:
+    msg: "{{ (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address }}"
+  loop: "{{ server_jobs.results }}"
+  when:
+    - debug_enabled | bool
+    - item.results_file is defined
+    - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
+
 - name: Extract IP addresses from results
   set_fact:
     server_ips: >-
@@ -79,3 +80,8 @@
   when:
     - item.results_file is defined
     - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
+
+- name: Debug server_ips
+  debug:
+    var: server_ips
+  when: debug_enabled | bool
