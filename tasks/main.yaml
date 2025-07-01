@@ -34,14 +34,14 @@
     datacenter: "{{ item.datacenter }}"
     image: "{{ item.image }}"
     user_data: "{{ lookup('file', '/tmp/cloud-config.yaml') }}"
-    labels: "{{ item.labels | default({}) }}"  
+    labels: "{{ item.labels | default({}) }}"
   loop: "{{ hetzner_servers }}"
-  async: 300 
+  async: 300
   poll: 0
   register: server_jobs
 
 - name: Wait for all servers to finish creation
-  async_status:
+  ansible.builtin.async_status:
     jid: "{{ item.ansible_job_id }}"
   register: job_results
   until: job_results.finished
@@ -51,12 +51,12 @@
   when: item.ansible_job_id is defined
 
 - name: Debug job results
-  debug:
+  ansible.builtin.debug:
     var: job_results
   when: debug_enabled | bool
 
 - name: Debug results file content
-  debug:
+  ansible.builtin.debug:
     msg: "{{ lookup('file', item.results_file) | from_json }}"
   loop: "{{ server_jobs.results }}"
   when:
@@ -64,7 +64,7 @@
     - item.results_file is defined
 
 - name: Debug extracted IP address
-  debug:
+  ansible.builtin.debug:
     msg: "{{ (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address }}"
   loop: "{{ server_jobs.results }}"
   when:
@@ -73,7 +73,7 @@
     - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
 
 - name: Extract IP addresses from results
-  set_fact:
+  ansible.builtin.set_fact:
     server_ips: >-
       {{ server_ips | default({}) | combine({ item.item.name: (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address }) }}
   loop: "{{ server_jobs.results }}"
@@ -82,6 +82,6 @@
     - (lookup('file', item.results_file) | from_json).hcloud_server.ipv4_address is defined
 
 - name: Debug server_ips
-  debug:
+  ansible.builtin.debug:
     var: server_ips
   when: debug_enabled | bool
