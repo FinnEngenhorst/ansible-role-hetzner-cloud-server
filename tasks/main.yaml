@@ -34,7 +34,7 @@
   register: existing_servers
   ignore_errors: true
 
-- name: Power off server if type changed
+- name: Power off server if server_type has changed
   hetzner.hcloud.server:
     api_token: "{{ hetzner_api_token }}"
     name: "{{ item.item.name }}"
@@ -46,7 +46,7 @@
         hetzner_servers | selectattr('name', 'equalto', item.item.name) | map(attribute='type') | first
       )
 
-- name: Create or update server (no disk resize)
+- name: Create or update server (new or type changed)
   hetzner.hcloud.server:
     api_token: "{{ hetzner_api_token }}"
     name: "{{ item.name }}"
@@ -57,34 +57,9 @@
     labels: "{{ item.labels | default({}) }}"
     state: present
   loop: "{{ hetzner_servers }}"
-  when: >
-    (
-      (existing_servers.results | selectattr('item.name', 'equalto', item.name) | map(attribute='failed') | first) | default(true)
-    ) or (
-      (
-        (hetzner_servers | selectattr('name', 'equalto', item.name) | map(attribute='upgrade_disk') | first) | default(false)
-      ) == false
-    )
   async: 300
   poll: 0
   register: server_jobs
-
-- name: Upgrade server with disk resize (irreversible)
-  hetzner.hcloud.server_type_change:
-    api_token: "{{ hetzner_api_token }}"
-    name: "{{ item.item.name }}"
-    server_type: >-
-      {{ hetzner_servers | selectattr('name', 'equalto', item.item.name) | map(attribute='type') | first }}
-    upgrade_disk: true
-  loop: "{{ existing_servers.results }}"
-  when:
-    - not item.failed | default(false)
-    - item.server_type != (
-        hetzner_servers | selectattr('name', 'equalto', item.item.name) | map(attribute='type') | first
-      )
-    - (
-        hetzner_servers | selectattr('name', 'equalto', item.item.name) | map(attribute='upgrade_disk') | first
-      ) | default(false)
 
 - name: Wait for all servers to finish creation
   async_status:
