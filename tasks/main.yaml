@@ -42,7 +42,7 @@
   loop: "{{ existing_servers.results }}"
   when:
     - not item.failed | default(false)
-    - item.server_type != (
+    - item.hcloud_server.server_type.name != (
         hetzner_servers | selectattr('name', 'equalto', item.item.name) | map(attribute='type') | first
       )
 
